@@ -1,0 +1,67 @@
+Index: src/frsky.cpp
+===================================================================
+--- src/frsky.cpp	(revision 921)
++++ src/frsky.cpp	(working copy)
+@@ -19,11 +19,15 @@
+ #include "gruvin9x.h"
+ #include "frsky.h"
+ 
++#define FRSKY_USERDATA_MAX 16
++
+ uint8_t frskyRxBuffer[19];   // Receive buffer. 9 bytes (full packet), worst case 18 bytes with byte-stuffing (+1)
+ uint8_t frskyTxBuffer[19]; // Ditto for transmit buffer
++uint8_t frskyUserData[FRSKY_USERDATA_MAX + 1] = "No user data";
+ uint8_t frskyTxBufferCount = 0;
+ uint8_t FrskyRxBufferReady = 0;
+ uint8_t frskyStreaming = 0;
++uint8_t frskyUserDataPos = 0;
+ 
+ uint8_t frskyA1;
+ uint8_t frskyA2;
+@@ -74,6 +78,21 @@
+       break;
+ 
+     case 0xfd: // User Data packet -- not yet implemented
++	  {
++		  unsigned char p=0;
++		  packet[1] += 3;
++		  for(p=3;p<packet[1];p++){
++			  frskyUserData[frskyUserDataPos++] = packet[p];
++			  if( packet[p] == 0 || frskyUserDataPos == FRSKY_USERDATA_MAX ) {
++				  frskyUserDataPos = 0;
++			  }
++		  }
++		  
++		  if( frskyUserDataPos ) {
++		  	frskyUserData[frskyUserDataPos] = 0;
++		  }
++		  	
++	  }
+       break;
+ 
+   }
+@@ -391,7 +410,6 @@
+ 
+   }
+ 
+-
+   uint8_t y = 2*FH;
+ 
+   // Data labels
+@@ -424,6 +442,16 @@
+     lcd_putc(128-FW, y, 'v');
+     lcd_vline(125, 58, 6); // marker
+   }
++	
++	if( frskyUserData[0] ) {
++		unsigned char p = 0;
++		unsigned char x = 2*FW;
++		y = 5*FH;
++		
++		for(;frskyUserData[p];x+=FW,p++){
++			lcd_putc(x, y, frskyUserData[p]);
++		}
++	}
+ 
+   // blinking if no data stream
+   if (frskyStreaming || ((blinkCount++ % 128) > 25)) // 50:255 off:on ratio at double speed
